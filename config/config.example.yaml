@@ -2,4 +2,9 @@ app:
   port: 3001
   debug: true
 
-#gcs:
+gcs:
+  project_id: <project id>
+  bucket_name: <bucket name>
+  image_secret: <secret>
+  service_account_email: <google access id>
+  service_account_key: <service account key>

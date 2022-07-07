@@ -7,24 +7,37 @@ option go_package = "src/proto";
 service FileService {
   rpc UploadImage(UploadImageRequest) returns (UploadImageResponse){}
   rpc UploadFile(UploadFileRequest) returns(UploadFileResponse) {}
+  rpc GetSignedUrl(GetSignedUrlRequest) returns (GetSignedUrlResponse) {}
 }
 
 // Upload Image
 
 message UploadImageRequest{
-  bytes data = 1;
+  string filename = 1;
+  bytes data = 2;
 }
 
 message UploadImageResponse{
-  string url = 1;
+  string filename = 1;
 }
 
 // Upload File
 
 message UploadFileRequest{
-  bytes data = 1;
+  string filename = 1;
+  bytes data = 2;
 }
 
 message UploadFileResponse{
+  string filename = 1;
+}
+
+// Get Signed Url
+
+message GetSignedUrlRequest{
+  string filename = 1;
+}
+
+message GetSignedUrlResponse{
   string url = 1;
 }
