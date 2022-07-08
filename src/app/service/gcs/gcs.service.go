@@ -7,6 +7,7 @@ import (
 	"github.com/isd-sgcu/rnkm65-file/src/config"
 	"github.com/isd-sgcu/rnkm65-file/src/constant"
 	"github.com/isd-sgcu/rnkm65-file/src/proto"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"time"
@@ -37,6 +38,10 @@ func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) 
 
 	err = s.client.Upload(req.Data, filename)
 	if err != nil {
+		log.Error().
+			Err(err).
+			Str("module", "upload image").
+			Msg("Cannot connect to google cloud storage")
 		return nil, status.Error(codes.Unavailable, "Cannot connect to google cloud storage")
 	}
 
@@ -51,6 +56,10 @@ func (s *Service) UploadFile(_ context.Context, req *proto.UploadFileRequest) (*
 
 	err = s.client.Upload(req.Data, filename)
 	if err != nil {
+		log.Error().
+			Err(err).
+			Str("module", "upload image").
+			Msg("Cannot connect to google cloud storage")
 		return nil, status.Error(codes.Unavailable, "Cannot connect to google cloud storage")
 	}
 
@@ -60,6 +69,10 @@ func (s *Service) UploadFile(_ context.Context, req *proto.UploadFileRequest) (*
 func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest) (*proto.GetSignedUrlResponse, error) {
 	url, err := s.client.GetSignedUrl(req.Filename)
 	if err != nil {
+		log.Error().
+			Err(err).
+			Str("module", "upload image").
+			Msg("Cannot connect to google cloud storage")
 		return nil, status.Error(codes.Unavailable, "Cannot connect to google cloud storage")
 	}
 
