@@ -18,6 +18,8 @@ type Client struct {
 	conf   config.GCS
 }
 
+const SignUrlExpiresIn = 15
+
 func NewClient(conf config.GCS) *Client {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(conf.ServiceAccountJSON))
@@ -76,12 +78,15 @@ func (c *Client) Upload(files []byte, filename string) error {
 func (c *Client) GetSignedUrl(filename string) (string, error) {
 	defer c.client.Close()
 
-	url, err := storage.SignedURL(c.conf.BucketName, filename, &storage.SignedURLOptions{
+	ops := storage.SignedURLOptions{
 		GoogleAccessID: c.conf.ServiceAccountEmail,
-		PrivateKey:     []byte(c.conf.ServiceAccountKey),
+		PrivateKey:     c.conf.ServiceAccountKey,
 		Method:         "GET",
-		Expires:        time.Now().Add(48 * time.Hour),
-	})
+		Expires:        time.Now().Add(SignUrlExpiresIn * time.Minute),
+		Scheme:         storage.SigningSchemeV4,
+	}
+
+	url, err := storage.SignedURL(c.conf.BucketName, filename, &ops)
 	if err != nil {
 		return "", err
 	}

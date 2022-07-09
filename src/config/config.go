@@ -10,9 +10,18 @@ type GCS struct {
 	ProjectId           string `mapstructure:"project_id"`
 	BucketName          string `mapstructure:"bucket_name"`
 	Secret              string `mapstructure:"image_secret"`
-	ServiceAccountKey   string `mapstructure:"service_account_key"`
 	ServiceAccountEmail string `mapstructure:"service_account_email"`
+	ServiceAccountKey   []byte
 	ServiceAccountJSON  []byte
+}
+
+type Database struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	User     string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	Name     string `mapstructure:"name"`
+	SSL      string `mapstructure:"ssl"`
 }
 
 type App struct {
@@ -21,8 +30,9 @@ type App struct {
 }
 
 type Config struct {
-	GCS GCS `mapstructure:"gcs"`
-	App App `mapstructure:"app"`
+	GCS      GCS      `mapstructure:"gcs"`
+	App      App      `mapstructure:"app"`
+	Database Database `mapstructure:"database"`
 }
 
 func LoadConfig() (config *Config, err error) {
@@ -43,6 +53,11 @@ func LoadConfig() (config *Config, err error) {
 	}
 
 	config.GCS.ServiceAccountJSON, err = loadFile("./config/gcs-service-account.json")
+	if err != nil {
+		return nil, errors.Wrap(err, "error occurs while unmarshal the config")
+	}
+
+	config.GCS.ServiceAccountKey, err = loadFile("./config/gcs-private-key.pem")
 	if err != nil {
 		return nil, errors.Wrap(err, "error occurs while unmarshal the config")
 	}

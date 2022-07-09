@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	fRepo "github.com/isd-sgcu/rnkm65-file/src/app/repository/file"
 	gcsSrv "github.com/isd-sgcu/rnkm65-file/src/app/service/gcs"
 	gcsClt "github.com/isd-sgcu/rnkm65-file/src/client/gcs"
 	"github.com/isd-sgcu/rnkm65-file/src/config"
+	"github.com/isd-sgcu/rnkm65-file/src/database"
 	"github.com/isd-sgcu/rnkm65-file/src/proto"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -30,10 +32,14 @@ func gracefulShutdown(ctx context.Context, timeout time.Duration, ops map[string
 		signal.Notify(s, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 		sig := <-s
 
-		log.Printf("got signal \"%v\" shutting down service", sig)
+		log.Info().
+			Str("service", "graceful shutdown").
+			Msgf("got signal \"%v\" shutting down service", sig)
 
 		timeoutFunc := time.AfterFunc(timeout, func() {
-			log.Printf("timeout %v ms has been elapsed, force exit", timeout.Milliseconds())
+			log.Error().
+				Str("service", "graceful shutdown").
+				Msgf("timeout %v ms has been elapsed, force exit", timeout.Milliseconds())
 			os.Exit(0)
 		})
 
@@ -48,13 +54,20 @@ func gracefulShutdown(ctx context.Context, timeout time.Duration, ops map[string
 			go func() {
 				defer wg.Done()
 
-				log.Printf("cleaning up: %v", innerKey)
+				log.Info().
+					Str("service", "graceful shutdown").
+					Msgf("cleaning up: %v", innerKey)
 				if err := innerOp(ctx); err != nil {
-					log.Printf("%v: clean up failed: %v", innerKey, err.Error())
+					log.Error().
+						Str("service", "graceful shutdown").
+						Err(err).
+						Msgf("%v: clean up failed: %v", innerKey, err.Error())
 					return
 				}
 
-				log.Printf("%v was shutdown gracefully", innerKey)
+				log.Info().
+					Str("service", "graceful shutdown").
+					Msgf("%v was shutdown gracefully", innerKey)
 			}()
 		}
 
@@ -68,16 +81,32 @@ func gracefulShutdown(ctx context.Context, timeout time.Duration, ops map[string
 func main() {
 	conf, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal("Cannot load config", err.Error())
+		log.Fatal().
+			Err(err).
+			Str("service", "file").
+			Msg("Failed to start service")
+	}
+
+	db, err := database.InitDatabase(&conf.Database)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Str("service", "file").
+			Msg("Failed to start service")
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal().
+			Err(err).
+			Str("service", "file").
+			Msg("Failed to start service")
 	}
 
+	fileRepo := fRepo.NewRepository(db)
+
 	gcsClient := gcsClt.NewClient(conf.GCS)
-	fileSrv := gcsSrv.NewService(conf.GCS, gcsClient)
+	fileSrv := gcsSrv.NewService(conf.GCS, gcsClient, fileRepo)
 
 	grpcServer := grpc.NewServer()
 
@@ -87,10 +116,15 @@ func main() {
 
 	reflection.Register(grpcServer)
 	go func() {
-		log.Println(fmt.Sprintf("RNKM65 backend starting at port %v", conf.App.Port))
+		log.Info().
+			Str("service", "file").
+			Msgf("RNKM65 file starting at port %v", conf.App.Port)
 
 		if err = grpcServer.Serve(lis); err != nil {
-			log.Fatalln("Failed to serve:", err)
+			log.Fatal().
+				Err(err).
+				Str("service", "auth").
+				Msg("Failed to start service")
 		}
 	}()
 
@@ -104,7 +138,11 @@ func main() {
 	<-wait
 
 	grpcServer.GracefulStop()
-	log.Println("Closing the listener")
+	log.Info().
+		Str("service", "file").
+		Msg("Closing the listener")
 	lis.Close()
-	log.Println("End of Program")
+	log.Info().
+		Str("service", "file").
+		Msg("End of Program")
 }

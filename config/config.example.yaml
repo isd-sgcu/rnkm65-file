@@ -8,3 +8,10 @@ gcs:
   image_secret: <secret>
   service_account_email: <google access id>
   service_account_key: <service account key>
+
+database:
+  host: localhost
+  port: 3306
+  name: rnkm-db
+  username: root
+  password: root

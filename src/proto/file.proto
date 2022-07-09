@@ -15,10 +15,12 @@ service FileService {
 message UploadImageRequest{
   string filename = 1;
   bytes data = 2;
+  string userId = 3;
+  int32 tag = 4;
 }
 
 message UploadImageResponse{
-  string filename = 1;
+  string url = 1;
 }
 
 // Upload File
@@ -26,16 +28,18 @@ message UploadImageResponse{
 message UploadFileRequest{
   string filename = 1;
   bytes data = 2;
+  string userId = 3;
+  int32 tag = 4;
 }
 
 message UploadFileResponse{
-  string filename = 1;
+  string url = 1;
 }
 
 // Get Signed Url
 
 message GetSignedUrlRequest{
-  string filename = 1;
+  string userId = 1;
 }
 
 message GetSignedUrlResponse{
