@@ -43,7 +43,7 @@ func (t *GCSServiceTest) SetupTest() {
 		ProjectId:           faker.Word(),
 		BucketName:          faker.Word(),
 		Secret:              faker.Word(),
-		ServiceAccountKey:   faker.Word(),
+		ServiceAccountKey:   []byte(faker.Word()),
 		ServiceAccountEmail: faker.Word(),
 	}
 

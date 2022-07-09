@@ -9,7 +9,7 @@ func (s Seed) UserSeed1655751437484() error {
 	for i := 0; i < 10; i++ {
 		usr := file.File{
 			Filename: faker.Word(),
-			Owner:    faker.UUIDDigit(),
+			OwnerID:  faker.UUIDDigit(),
 			Tag:      1,
 		}
 		err := s.db.Create(&usr).Error
