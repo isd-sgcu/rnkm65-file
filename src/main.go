@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	gcsSrv "github.com/isd-sgcu/rnkm65-file/src/app/service/gcs"
+	gcsClt "github.com/isd-sgcu/rnkm65-file/src/client/gcs"
 	"github.com/isd-sgcu/rnkm65-file/src/config"
+	"github.com/isd-sgcu/rnkm65-file/src/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
 	"os"
@@ -72,10 +76,16 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	gcsClient := gcsClt.NewClient(conf.GCS)
+	fileSrv := gcsSrv.NewService(conf.GCS, gcsClient)
+
 	grpcServer := grpc.NewServer()
 
 	grpc_health_v1.RegisterHealthServer(grpcServer, health.NewServer())
 
+	proto.RegisterFileServiceServer(grpcServer, fileSrv)
+
+	reflection.Register(grpcServer)
 	go func() {
 		log.Println(fmt.Sprintf("RNKM65 backend starting at port %v", conf.App.Port))
 

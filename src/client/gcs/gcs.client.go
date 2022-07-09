@@ -7,6 +7,7 @@ import (
 	"github.com/isd-sgcu/rnkm65-file/src/config"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/api/option"
 	"io"
 	"time"
 )
@@ -17,20 +18,39 @@ type Client struct {
 	conf   config.GCS
 }
 
-func NewClient() *Client {
+func NewClient(conf config.GCS) *Client {
 	ctx := context.Background()
-	client, _ := storage.NewClient(ctx)
+	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(conf.ServiceAccountJSON))
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("service", "file").
+			Str("module", "gcs client").
+			Msg("Cannot create google cloud storage client")
+	}
 
 	return &Client{
 		client: client,
 		ctx:    ctx,
+		conf:   conf,
 	}
 }
 
 func (c *Client) Upload(files []byte, filename string) error {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(c.conf.ServiceAccountJSON))
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("service", "file").
+			Str("module", "gcs client").
+			Msg("Cannot create client")
+		return errors.New("Cannot create client")
+	}
+
+	defer client.Close()
 	ctx, cancel := context.WithTimeout(c.ctx, 50*time.Second)
 	defer cancel()
-	defer c.client.Close()
 
 	buf := bytes.NewBuffer(files)
 
@@ -38,14 +58,16 @@ func (c *Client) Upload(files []byte, filename string) error {
 	wc.ChunkSize = 0
 
 	if _, err := io.Copy(wc, buf); err != nil {
-		return errors.New("Error while uploading the object")
+		return errors.Wrap(err, "Error while uploading the object")
 	}
 
 	if err := wc.Close(); err != nil {
-		return errors.New("Error while closing the connection")
+		return errors.Wrap(err, "Error while closing the connection")
 	}
 	log.Info().
 		Str("bucket", c.conf.BucketName).
+		Str("service", "file").
+		Str("module", "gcs client").
 		Msgf("Successfully upload image %v", filename)
 
 	return nil

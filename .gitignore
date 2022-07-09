@@ -17,6 +17,7 @@
 
 # config file
 config.yaml
+gcs-service-account.json
 .env
 .env.prod
 
@@ -29,3 +30,5 @@ volumes
 # coverage report
 coverage.out
 coverage.html
+
+.DS_Store

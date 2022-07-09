@@ -2,14 +2,15 @@ package gcs
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
+	"github.com/isd-sgcu/rnkm65-file/src/app/utils"
 	"github.com/isd-sgcu/rnkm65-file/src/config"
 	"github.com/isd-sgcu/rnkm65-file/src/constant"
 	"github.com/isd-sgcu/rnkm65-file/src/proto"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,10 @@ func NewService(conf config.GCS, client IClient) *Service {
 }
 
 func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) (*proto.UploadImageResponse, error) {
+	if req.Data == nil {
+		return nil, status.Error(codes.InvalidArgument, "File cannot be empty")
+	}
+
 	filename, err := s.GetObjectName(req.Filename, constant.IMAGE)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "Invalid file type")
@@ -81,12 +86,15 @@ func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest
 
 func (s *Service) GetObjectName(filename string, fileType constant.FileType) (string, error) {
 	text := fmt.Sprintf("%s%s%v", filename, s.conf.Secret, time.Now().Unix())
-	hashed := sha256.Sum256([]byte(text))
+	hashed := utils.Hash([]byte(text))
+
+	hashed = strings.ReplaceAll(hashed, "/", "")
+
 	switch fileType {
 	case constant.FILE:
-		return fmt.Sprintf("file-%s-%s", filename, hashed), nil
+		return fmt.Sprintf("file-%s-%d-%s", filename, time.Now().Unix(), hashed), nil
 	case constant.IMAGE:
-		return fmt.Sprintf("image-%s-%s", filename, hashed), nil
+		return fmt.Sprintf("image-%s-%d-%s", filename, time.Now().Unix(), hashed), nil
 	default:
 		return "", nil
 	}

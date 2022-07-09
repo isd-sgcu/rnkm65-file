@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"io/ioutil"
 )
 
 type GCS struct {
@@ -11,6 +12,7 @@ type GCS struct {
 	Secret              string `mapstructure:"image_secret"`
 	ServiceAccountKey   string `mapstructure:"service_account_key"`
 	ServiceAccountEmail string `mapstructure:"service_account_email"`
+	ServiceAccountJSON  []byte
 }
 
 type App struct {
@@ -40,5 +42,19 @@ func LoadConfig() (config *Config, err error) {
 		return nil, errors.Wrap(err, "error occurs while unmarshal the config")
 	}
 
+	config.GCS.ServiceAccountJSON, err = loadFile("./config/gcs-service-account.json")
+	if err != nil {
+		return nil, errors.Wrap(err, "error occurs while unmarshal the config")
+	}
+
 	return
+}
+
+func loadFile(path string) ([]byte, error) {
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }
