@@ -38,6 +38,11 @@ func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) 
 
 	filename, err := s.GetObjectName(req.Filename, constant.IMAGE)
 	if err != nil {
+		log.Error().Err(err).
+			Str("service", "file").
+			Str("module", "upload image").
+			Str("file_name", filename).
+			Msg("Invalid file type")
 		return nil, status.Error(codes.InvalidArgument, "Invalid file type")
 	}
 
@@ -56,6 +61,12 @@ func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) 
 func (s *Service) UploadFile(_ context.Context, req *proto.UploadFileRequest) (*proto.UploadFileResponse, error) {
 	filename, err := s.GetObjectName(req.Filename, constant.FILE)
 	if err != nil {
+		log.Error().Err(err).
+			Str("service", "file").
+			Str("module", "upload file").
+			Str("method", "GetObjectName").
+			Str("file_name", filename).
+			Msg("Invalid file type")
 		return nil, status.Error(codes.InvalidArgument, "Invalid file type")
 	}
 
