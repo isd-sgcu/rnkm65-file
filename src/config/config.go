@@ -15,6 +15,12 @@ type GCS struct {
 	ServiceAccountJSON  []byte
 }
 
+type Redis struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Password string `mapstructure:"password"`
+}
+
 type Database struct {
 	Host     string `mapstructure:"host"`
 	Port     int    `mapstructure:"port"`
@@ -25,14 +31,16 @@ type Database struct {
 }
 
 type App struct {
-	Port  int  `mapstructure:"port"`
-	Debug bool `mapstructure:"debug"`
+	Port     int  `mapstructure:"port"`
+	Debug    bool `mapstructure:"debug"`
+	CacheTTL int  `mapstructure:"cache_ttl"`
 }
 
 type Config struct {
 	GCS      GCS      `mapstructure:"gcs"`
 	App      App      `mapstructure:"app"`
 	Database Database `mapstructure:"database"`
+	Redis    Redis    `mapstructure:"redis"`
 }
 
 func LoadConfig() (config *Config, err error) {

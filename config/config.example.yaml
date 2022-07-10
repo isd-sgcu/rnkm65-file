@@ -1,13 +1,13 @@
 app:
   port: 3003
   debug: true
+  cache_ttl: 900
 
 gcs:
   project_id: <project id>
   bucket_name: <bucket name>
   image_secret: <secret>
   service_account_email: <google access id>
-  service_account_key: <service account key>
 
 database:
   host: localhost
@@ -15,3 +15,7 @@ database:
   name: rnkm-db
   username: root
   password: root
+
+redis:
+  host: localhost:6379
+  password: ""

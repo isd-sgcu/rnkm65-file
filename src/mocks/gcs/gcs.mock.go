@@ -1,9 +1,7 @@
 package gcs
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/mock"
-	"strings"
 )
 
 type ClientMock struct {
@@ -16,11 +14,8 @@ func (c *ClientMock) Upload(file []byte, _ string) error {
 	return args.Error(0)
 }
 
-func (c *ClientMock) GetSignedUrl(filename string) (string, error) {
-	filenames := strings.Split(filename, "-")
-	filename = fmt.Sprintf("%s-%s", filenames[1], filenames[2])
-
-	args := c.Called(filename)
+func (c *ClientMock) GetSignedUrl(_ string) (string, error) {
+	args := c.Called()
 
 	return args.String(0), args.Error(1)
 }

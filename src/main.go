@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/isd-sgcu/rnkm65-file/src/app/repository/cache"
 	fRepo "github.com/isd-sgcu/rnkm65-file/src/app/repository/file"
 	gcsSrv "github.com/isd-sgcu/rnkm65-file/src/app/service/gcs"
 	gcsClt "github.com/isd-sgcu/rnkm65-file/src/client/gcs"
@@ -95,6 +96,14 @@ func main() {
 			Msg("Failed to start service")
 	}
 
+	cacheDB, err := database.InitRedisConnect(&conf.Redis)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Str("service", "file").
+			Msg("Failed to start service")
+	}
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
 	if err != nil {
 		log.Fatal().
@@ -103,10 +112,12 @@ func main() {
 			Msg("Failed to start service")
 	}
 
+	cacheRepo := cache.NewRepository(cacheDB)
+
 	fileRepo := fRepo.NewRepository(db)
 
 	gcsClient := gcsClt.NewClient(conf.GCS)
-	fileSrv := gcsSrv.NewService(conf.GCS, gcsClient, fileRepo)
+	fileSrv := gcsSrv.NewService(conf.GCS, conf.App.CacheTTL, gcsClient, fileRepo, cacheRepo)
 
 	grpcServer := grpc.NewServer()
 

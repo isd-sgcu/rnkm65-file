@@ -2,7 +2,8 @@ package gcs
 
 import (
 	"context"
-	"fmt"
+	"github.com/go-redis/redis/v8"
+	dto "github.com/isd-sgcu/rnkm65-file/src/app/dto/file"
 	"github.com/isd-sgcu/rnkm65-file/src/app/model/file"
 	"github.com/isd-sgcu/rnkm65-file/src/app/utils"
 	"github.com/isd-sgcu/rnkm65-file/src/config"
@@ -11,14 +12,14 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"strings"
-	"time"
 )
 
 type Service struct {
 	conf       config.GCS
+	ttl        int
 	client     IClient
 	repository IRepository
+	cacheRepo  ICacheRepository
 }
 
 type IClient interface {
@@ -32,11 +33,18 @@ type IRepository interface {
 	Delete(string) error
 }
 
-func NewService(conf config.GCS, client IClient, repository IRepository) *Service {
+type ICacheRepository interface {
+	SaveCache(string, interface{}, int) error
+	GetCache(string, interface{}) error
+}
+
+func NewService(conf config.GCS, ttl int, client IClient, repository IRepository, cacheRepo ICacheRepository) *Service {
 	return &Service{
 		conf:       conf,
+		ttl:        ttl,
 		client:     client,
 		repository: repository,
+		cacheRepo:  cacheRepo,
 	}
 }
 
@@ -45,7 +53,7 @@ func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) 
 		return nil, status.Error(codes.InvalidArgument, "File cannot be empty")
 	}
 
-	filename, err := s.GetObjectName(req.Filename, constant.IMAGE)
+	filename, err := utils.GetObjectName(req.Filename, s.conf.Secret, constant.IMAGE)
 	if err != nil {
 		log.Error().Err(err).
 			Str("service", "file").
@@ -93,6 +101,23 @@ func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) 
 		return nil, status.Error(codes.Unavailable, "Internal service error")
 	}
 
+	cacheFile := dto.CacheFile{
+		Url:      url,
+		Filename: filename,
+	}
+
+	err = s.cacheRepo.SaveCache(req.UserId, &cacheFile, s.ttl)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("module", "upload image").
+			Str("filename", filename).
+			Str("user_id", req.UserId).
+			Interface("cache", cacheFile).
+			Msg("Error while connecting to redis server")
+		return nil, status.Error(codes.Unavailable, "Error while connecting to redis server")
+	}
+
 	return &proto.UploadImageResponse{Url: url}, nil
 }
 
@@ -101,7 +126,7 @@ func (s *Service) UploadFile(_ context.Context, req *proto.UploadFileRequest) (*
 		return nil, status.Error(codes.InvalidArgument, "File cannot be empty")
 	}
 
-	filename, err := s.GetObjectName(req.Filename, constant.FILE)
+	filename, err := utils.GetObjectName(req.Filename, s.conf.Secret, constant.FILE)
 	if err != nil {
 		log.Error().Err(err).
 			Str("service", "file").
@@ -132,12 +157,44 @@ func (s *Service) UploadFile(_ context.Context, req *proto.UploadFileRequest) (*
 		return nil, status.Error(codes.Unavailable, "Internal service error")
 	}
 
+	cacheFile := dto.CacheFile{
+		Url:      url,
+		Filename: filename,
+	}
+
+	err = s.cacheRepo.SaveCache(req.UserId, &cacheFile, s.ttl)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("module", "upload file").
+			Str("filename", filename).
+			Str("user_id", req.UserId).
+			Interface("cache", cacheFile).
+			Msg("Error while connecting to redis server")
+		return nil, status.Error(codes.Unavailable, "Error while connecting to redis server")
+	}
+
 	return &proto.UploadFileResponse{Url: url}, nil
 }
 
 func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest) (*proto.GetSignedUrlResponse, error) {
+	cachedFile := &dto.CacheFile{}
+	err := s.cacheRepo.GetCache(req.UserId, cachedFile)
+	if err == nil {
+		return &proto.GetSignedUrlResponse{Url: cachedFile.Url}, nil
+	}
+
+	if err != redis.Nil {
+		log.Error().
+			Err(err).
+			Str("module", "get signed url").
+			Str("user_id", req.UserId).
+			Msg("Error while connecting to redis server")
+		return nil, status.Error(codes.Unavailable, "Error while connecting to redis server")
+	}
+
 	f := file.File{}
-	err := s.repository.FindByOwnerID(req.UserId, &f)
+	err = s.repository.FindByOwnerID(req.UserId, &f)
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -156,21 +213,22 @@ func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest
 		return nil, status.Error(codes.Unavailable, "Cannot connect to google cloud storage")
 	}
 
-	return &proto.GetSignedUrlResponse{Url: url}, nil
-}
-
-func (s *Service) GetObjectName(filename string, fileType constant.FileType) (string, error) {
-	text := fmt.Sprintf("%s%s%v", filename, s.conf.Secret, time.Now().Unix())
-	hashed := utils.Hash([]byte(text))
-
-	hashed = strings.ReplaceAll(hashed, "/", "")
-
-	switch fileType {
-	case constant.FILE:
-		return fmt.Sprintf("file-%s-%d-%s", filename, time.Now().Unix(), hashed), nil
-	case constant.IMAGE:
-		return fmt.Sprintf("image-%s-%d-%s", filename, time.Now().Unix(), hashed), nil
-	default:
-		return "", nil
+	cachedFile = &dto.CacheFile{
+		Url:      url,
+		Filename: f.Filename,
 	}
+
+	err = s.cacheRepo.SaveCache(req.UserId, cachedFile, s.ttl)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("module", "upload file").
+			Str("filename", cachedFile.Filename).
+			Str("user_id", req.UserId).
+			Interface("cache", cachedFile).
+			Msg("Error while connecting to redis server")
+		return nil, status.Error(codes.Unavailable, "Error while connecting to redis server")
+	}
+
+	return &proto.GetSignedUrlResponse{Url: url}, nil
 }
