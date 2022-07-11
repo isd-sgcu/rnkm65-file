@@ -2,6 +2,7 @@ app:
   port: 3003
   debug: true
   cache_ttl: 900
+  max_file_size: 10
 
 gcs:
   bucket_name: <bucket name>

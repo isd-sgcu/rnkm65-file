@@ -119,7 +119,7 @@ func main() {
 	gcsClient := gcsClt.NewClient(conf.GCS)
 	fileSrv := gcsSrv.NewService(conf.GCS, conf.App.CacheTTL, gcsClient, fileRepo, cacheRepo)
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.MaxRecvMsgSize(conf.App.MaxFileSize * 1024 * 1024))
 
 	grpc_health_v1.RegisterHealthServer(grpcServer, health.NewServer())
 
