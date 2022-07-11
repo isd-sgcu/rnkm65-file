@@ -140,9 +140,19 @@ func main() {
 	}()
 
 	wait := gracefulShutdown(context.Background(), 2*time.Second, map[string]operation{
+		"database": func(ctx context.Context) error {
+			sqlDb, err := db.DB()
+			if err != nil {
+				return err
+			}
+			return sqlDb.Close()
+		},
 		"server": func(ctx context.Context) error {
 			grpcServer.GracefulStop()
 			return nil
+		},
+		"cache": func(ctx context.Context) error {
+			return cacheDB.Close()
 		},
 	})
 
