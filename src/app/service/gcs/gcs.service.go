@@ -4,10 +4,10 @@ import (
 	"context"
 	"github.com/go-redis/redis/v8"
 	dto "github.com/isd-sgcu/rnkm65-file/src/app/dto/file"
-	"github.com/isd-sgcu/rnkm65-file/src/app/model/file"
+	model "github.com/isd-sgcu/rnkm65-file/src/app/model/file"
 	"github.com/isd-sgcu/rnkm65-file/src/app/utils"
 	"github.com/isd-sgcu/rnkm65-file/src/config"
-	"github.com/isd-sgcu/rnkm65-file/src/constant"
+	"github.com/isd-sgcu/rnkm65-file/src/constant/file"
 	"github.com/isd-sgcu/rnkm65-file/src/proto"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
@@ -28,8 +28,8 @@ type IClient interface {
 }
 
 type IRepository interface {
-	FindByOwnerID(string, *file.File) error
-	CreateOrUpdate(*file.File) error
+	FindByOwnerID(string, *model.File) error
+	CreateOrUpdate(*model.File) error
 	Delete(string) error
 }
 
@@ -48,12 +48,12 @@ func NewService(conf config.GCS, ttl int, client IClient, repository IRepository
 	}
 }
 
-func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) (*proto.UploadImageResponse, error) {
+func (s *Service) Upload(_ context.Context, req *proto.UploadRequest) (*proto.UploadResponse, error) {
 	if req.Data == nil {
 		return nil, status.Error(codes.InvalidArgument, "File cannot be empty")
 	}
 
-	filename, err := utils.GetObjectName(req.Filename, s.conf.Secret, constant.IMAGE)
+	filename, err := utils.GetObjectName(req.Filename, s.conf.Secret, file.Type(req.Type))
 	if err != nil {
 		log.Error().Err(err).
 			Str("service", "file").
@@ -72,7 +72,7 @@ func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) 
 		return nil, status.Error(codes.Unavailable, "Cannot connect to google cloud storage")
 	}
 
-	f := &file.File{
+	f := &model.File{
 		Filename: filename,
 		OwnerID:  req.UserId,
 		Tag:      int(req.Tag),
@@ -118,63 +118,7 @@ func (s *Service) UploadImage(_ context.Context, req *proto.UploadImageRequest) 
 		return nil, status.Error(codes.Unavailable, "Error while connecting to redis server")
 	}
 
-	return &proto.UploadImageResponse{Url: url}, nil
-}
-
-func (s *Service) UploadFile(_ context.Context, req *proto.UploadFileRequest) (*proto.UploadFileResponse, error) {
-	if req.Data == nil {
-		return nil, status.Error(codes.InvalidArgument, "File cannot be empty")
-	}
-
-	filename, err := utils.GetObjectName(req.Filename, s.conf.Secret, constant.FILE)
-	if err != nil {
-		log.Error().Err(err).
-			Str("service", "file").
-			Str("module", "upload file").
-			Str("method", "GetObjectName").
-			Str("file_name", filename).
-			Msg("Invalid file type")
-		return nil, status.Error(codes.InvalidArgument, "Invalid file type")
-	}
-
-	err = s.client.Upload(req.Data, filename)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("module", "upload image").
-			Msg("Cannot connect to google cloud storage")
-		return nil, status.Error(codes.Unavailable, "Cannot connect to google cloud storage")
-	}
-
-	url, err := s.client.GetSignedUrl(filename)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("module", "upload image").
-			Str("filename", filename).
-			Str("user_id", req.UserId).
-			Msg("Error while trying to get signed url")
-		return nil, status.Error(codes.Unavailable, "Internal service error")
-	}
-
-	cacheFile := dto.CacheFile{
-		Url:      url,
-		Filename: filename,
-	}
-
-	err = s.cacheRepo.SaveCache(req.UserId, &cacheFile, s.ttl)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("module", "upload file").
-			Str("filename", filename).
-			Str("user_id", req.UserId).
-			Interface("cache", cacheFile).
-			Msg("Error while connecting to redis server")
-		return nil, status.Error(codes.Unavailable, "Error while connecting to redis server")
-	}
-
-	return &proto.UploadFileResponse{Url: url}, nil
+	return &proto.UploadResponse{Url: url}, nil
 }
 
 func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest) (*proto.GetSignedUrlResponse, error) {
@@ -193,7 +137,7 @@ func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest
 		return nil, status.Error(codes.Unavailable, "Error while connecting to redis server")
 	}
 
-	f := file.File{}
+	f := model.File{}
 	err = s.repository.FindByOwnerID(req.UserId, &f)
 	if err != nil {
 		log.Error().

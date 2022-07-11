@@ -5,34 +5,21 @@ package file;
 option go_package = "src/proto";
 
 service FileService {
-  rpc UploadImage(UploadImageRequest) returns (UploadImageResponse){}
-  rpc UploadFile(UploadFileRequest) returns(UploadFileResponse) {}
+  rpc Upload(UploadRequest) returns (UploadResponse){}
   rpc GetSignedUrl(GetSignedUrlRequest) returns (GetSignedUrlResponse) {}
 }
 
-// Upload Image
+// Upload
 
-message UploadImageRequest{
+message UploadRequest{
   string filename = 1;
   bytes data = 2;
   string userId = 3;
   int32 tag = 4;
+  int32 type = 5;
 }
 
-message UploadImageResponse{
-  string url = 1;
-}
-
-// Upload File
-
-message UploadFileRequest{
-  string filename = 1;
-  bytes data = 2;
-  string userId = 3;
-  int32 tag = 4;
-}
-
-message UploadFileResponse{
+message UploadResponse{
   string url = 1;
 }
 

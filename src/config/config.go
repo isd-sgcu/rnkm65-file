@@ -7,7 +7,6 @@ import (
 )
 
 type GCS struct {
-	ProjectId           string `mapstructure:"project_id"`
 	BucketName          string `mapstructure:"bucket_name"`
 	Secret              string `mapstructure:"image_secret"`
 	ServiceAccountEmail string `mapstructure:"service_account_email"`

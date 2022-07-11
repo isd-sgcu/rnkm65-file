@@ -43,7 +43,6 @@ func (t *GCSServiceTest) SetupTest() {
 	t.url = faker.URL()
 
 	t.conf = config.GCS{
-		ProjectId:           faker.Word(),
 		BucketName:          faker.Word(),
 		Secret:              faker.Word(),
 		ServiceAccountKey:   []byte(faker.Word()),
@@ -68,8 +67,8 @@ func (t *GCSServiceTest) SetupTest() {
 	}
 }
 
-func (t *GCSServiceTest) TestUploadImageSuccess() {
-	want := &proto.UploadImageResponse{Url: t.url}
+func (t *GCSServiceTest) TestUploadSuccess() {
+	want := &proto.UploadResponse{Url: t.url}
 
 	c := mock.ClientMock{}
 	c.On("Upload", t.file).Return(nil)
@@ -83,7 +82,7 @@ func (t *GCSServiceTest) TestUploadImageSuccess() {
 
 	srv := NewService(t.conf, t.ttl, &c, &repo, &cacheRepo)
 
-	actual, err := srv.UploadImage(context.Background(), &proto.UploadImageRequest{
+	actual, err := srv.Upload(context.Background(), &proto.UploadRequest{
 		Filename: t.filename,
 		Data:     t.file,
 		UserId:   t.f.OwnerID,
@@ -94,7 +93,7 @@ func (t *GCSServiceTest) TestUploadImageSuccess() {
 	assert.Equal(t.T(), want, actual)
 }
 
-func (t *GCSServiceTest) TestUploadImageFailed() {
+func (t *GCSServiceTest) TestUploadFailed() {
 	c := mock.ClientMock{}
 	c.On("Upload", t.file).Return(errors.New("Cannot upload file"))
 	c.On("GetSignedUrl").Return(t.url, nil)
@@ -107,113 +106,7 @@ func (t *GCSServiceTest) TestUploadImageFailed() {
 
 	srv := NewService(t.conf, t.ttl, &c, &repo, &cacheRepo)
 
-	actual, err := srv.UploadImage(context.Background(), &proto.UploadImageRequest{
-		Filename: t.filename,
-		Data:     t.file,
-		UserId:   t.f.OwnerID,
-		Tag:      1,
-	})
-
-	st, ok := status.FromError(err)
-
-	assert.True(t.T(), ok)
-	assert.Nil(t.T(), actual)
-	assert.Equal(t.T(), codes.Unavailable, st.Code())
-}
-
-func (t *GCSServiceTest) TestUploadImageSaveFileError() {
-	c := mock.ClientMock{}
-	c.On("Upload", t.file).Return(errors.New("Cannot upload file"))
-	c.On("GetSignedUrl").Return(t.url, nil)
-
-	repo := fMock.RepositoryMock{}
-	repo.On("CreateOrUpdate", t.f.OwnerID).Return(nil, errors.New("Error while saving"))
-
-	cacheRepo := cMock.RepositoryMock{V: map[string]interface{}{}}
-	cacheRepo.On("SaveCache", t.f.OwnerID, t.cacheFile.Url, t.ttl).Return(nil)
-
-	srv := NewService(t.conf, t.ttl, &c, &repo, &cacheRepo)
-
-	actual, err := srv.UploadFile(context.Background(), &proto.UploadFileRequest{
-		Filename: t.filename,
-		Data:     t.file,
-		UserId:   t.f.OwnerID,
-		Tag:      1,
-	})
-
-	st, ok := status.FromError(err)
-
-	assert.True(t.T(), ok)
-	assert.Nil(t.T(), actual)
-	assert.Equal(t.T(), codes.Unavailable, st.Code())
-}
-
-func (t *GCSServiceTest) TestUploadFileSuccess() {
-	want := &proto.UploadFileResponse{Url: t.url}
-
-	c := mock.ClientMock{}
-	c.On("Upload", t.file).Return(nil)
-	c.On("GetSignedUrl").Return(t.url, nil)
-
-	repo := fMock.RepositoryMock{}
-	repo.On("CreateOrUpdate", t.f.OwnerID).Return(t.f, nil)
-
-	cacheRepo := cMock.RepositoryMock{V: map[string]interface{}{}}
-	cacheRepo.On("SaveCache", t.f.OwnerID, t.cacheFile.Url, t.ttl).Return(nil)
-
-	srv := NewService(t.conf, t.ttl, &c, &repo, &cacheRepo)
-
-	actual, err := srv.UploadFile(context.Background(), &proto.UploadFileRequest{
-		Filename: t.filename,
-		Data:     t.file,
-		Tag:      1,
-		UserId:   t.f.OwnerID,
-	})
-
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), want, actual)
-}
-
-func (t *GCSServiceTest) TestUploadFileFailed() {
-	c := mock.ClientMock{}
-	c.On("Upload", t.file).Return(errors.New("Cannot upload file"))
-	c.On("GetSignedUrl").Return(t.url, nil)
-
-	repo := fMock.RepositoryMock{}
-	repo.On("CreateOrUpdate", t.f.OwnerID).Return(t.f, nil)
-
-	cacheRepo := cMock.RepositoryMock{V: map[string]interface{}{}}
-	cacheRepo.On("SaveCache", t.f.OwnerID, t.cacheFile.Url, t.ttl).Return(nil)
-
-	srv := NewService(t.conf, t.ttl, &c, &repo, &cacheRepo)
-
-	actual, err := srv.UploadFile(context.Background(), &proto.UploadFileRequest{
-		Filename: t.filename,
-		Data:     t.file,
-		Tag:      1,
-	})
-
-	st, ok := status.FromError(err)
-
-	assert.True(t.T(), ok)
-	assert.Nil(t.T(), actual)
-	assert.Equal(t.T(), codes.Unavailable, st.Code())
-}
-
-func (t *GCSServiceTest) TestUploadFileSaveFileError() {
-	c := mock.ClientMock{}
-	c.On("Upload", t.file).Return(errors.New("Cannot upload file"))
-	c.On("GetSignedUrl").Return(t.url, nil)
-
-	repo := fMock.RepositoryMock{}
-	repo.On("CreateOrUpdate", t.f.OwnerID).Return(nil, errors.New("Error while saving"))
-
-	cacheRepo := cMock.RepositoryMock{V: map[string]interface{}{}}
-	cacheRepo.On("SaveCache", t.f.OwnerID, t.cacheFile.Url, t.ttl).Return(nil)
-
-	srv := NewService(t.conf, t.ttl, &c, &repo, &cacheRepo)
-
-	actual, err := srv.UploadFile(context.Background(), &proto.UploadFileRequest{
+	actual, err := srv.Upload(context.Background(), &proto.UploadRequest{
 		Filename: t.filename,
 		Data:     t.file,
 		UserId:   t.f.OwnerID,
@@ -274,6 +167,35 @@ func (t *GCSServiceTest) TestGetSignedUrlCachedErr() {
 func (t *GCSServiceTest) TestGetSignedUrlSuccessSaveCacheSuccess() {
 	want := &proto.GetSignedUrlResponse{Url: t.url}
 
+	repo := fMock.RepositoryMock{}
+	repo.On("CreateOrUpdate", t.f.OwnerID).Return(nil, errors.New("Error while saving"))
+
+	cacheRepo := cMock.RepositoryMock{V: map[string]interface{}{}}
+	cacheRepo.On("SaveCache", t.f.OwnerID, t.cacheFile.Url, t.ttl).Return(nil)
+
+	srv := NewService(t.conf, t.ttl, &c, &repo, &cacheRepo)
+
+	actual, err := srv.UploadFile(context.Background(), &proto.UploadFileRequest{
+		Filename: t.filename,
+		Data:     t.file,
+		UserId:   t.f.OwnerID,
+		Tag:      1,
+	})
+
+	st, ok := status.FromError(err)
+
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Unavailable, st.Code())
+}
+
+func (t *GCSServiceTest) TestGetSignedUrlCachedSuccess() {
+	t.f.Filename = fmt.Sprintf("%s-%s", t.filename, faker.Word())
+	str := strings.Split(t.f.Filename, "file-")
+	t.filename = str[1]
+
+	want := &proto.GetSignedUrlResponse{Url: t.url}
+
 	c := mock.ClientMock{}
 	c.On("GetSignedUrl").Return(t.url, nil)
 
@@ -293,6 +215,8 @@ func (t *GCSServiceTest) TestGetSignedUrlSuccessSaveCacheSuccess() {
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), want, actual)
 }
+func (t *GCSServiceTest) TestGetSignedUrlCachedErr() {
+	c := mock.ClientMock{}
 
 func (t *GCSServiceTest) TestGetSignedUrlSuccessSaveCacheFailed() {
 	c := mock.ClientMock{}
