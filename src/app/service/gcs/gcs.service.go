@@ -145,7 +145,7 @@ func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest
 			Str("module", "get signed url").
 			Str("user_id", req.UserId).
 			Msg("Error while trying to query data")
-		return nil, status.Error(codes.Unavailable, "Internal service error")
+		return nil, status.Error(codes.NotFound, "Not found file")
 	}
 
 	url, err := s.client.GetSignedUrl(f.Filename)
