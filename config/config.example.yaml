@@ -1,5 +1,21 @@
 app:
-  port: 3001
+  port: 3003
   debug: true
+  cache_ttl: 900
+  max_file_size: 10
 
-#gcs:
+gcs:
+  bucket_name: <bucket name>
+  image_secret: <secret>
+  service_account_email: <google access id>
+
+database:
+  host: localhost
+  port: 3306
+  name: rnkm-db
+  username: root
+  password: root
+
+redis:
+  host: localhost:6379
+  password: ""
