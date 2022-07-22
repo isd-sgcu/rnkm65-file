@@ -153,6 +153,8 @@ func (s *Service) GetSignedUrl(_ context.Context, req *proto.GetSignedUrlRequest
 		log.Error().
 			Err(err).
 			Str("module", "upload image").
+			Str("filename", cachedFile.Filename).
+			Str("user_id", req.UserId).
 			Msg("Cannot connect to google cloud storage")
 		return nil, status.Error(codes.Unavailable, "Cannot connect to google cloud storage")
 	}

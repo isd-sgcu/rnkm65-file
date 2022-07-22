@@ -13,23 +13,20 @@ import (
 )
 
 type Client struct {
-	ctx  context.Context
 	conf config.GCS
 }
 
 const SignUrlExpiresIn = 15
 
 func NewClient(conf config.GCS) *Client {
-	ctx := context.Background()
 	return &Client{
-		ctx:  ctx,
 		conf: conf,
 	}
 }
 
 func (c *Client) Upload(files []byte, filename string) error {
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(c.ctx, 50*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
 	defer cancel()
 
 	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(c.conf.ServiceAccountJSON))
